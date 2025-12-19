@@ -1,12 +1,14 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Check, Building, Globe, MapPin, Camera, ClipboardCheck, Sparkles } from 'lucide-react';
+import { Check, Building, Globe, MapPin, Camera, ClipboardCheck, Sparkles, PartyPopper } from 'lucide-react';
+import { getCompletionPercentage } from '@/lib/state';
 import type { Checkpoint } from '@/types/onboarding';
 
 interface CheckpointProgressProps {
   currentCheckpoint: Checkpoint;
   className?: string;
+  showPercentage?: boolean;
 }
 
 const checkpoints: {
@@ -32,12 +34,48 @@ const checkpointOrder: Checkpoint[] = [
   'COMPLETED',
 ];
 
-export function CheckpointProgress({ currentCheckpoint, className }: CheckpointProgressProps) {
+export function CheckpointProgress({
+  currentCheckpoint,
+  className,
+  showPercentage = true,
+}: CheckpointProgressProps) {
   const currentIndex = checkpointOrder.indexOf(currentCheckpoint);
+  const percentage = getCompletionPercentage(currentCheckpoint);
+  const isComplete = currentCheckpoint === 'COMPLETED';
+
+  // Show completion state
+  if (isComplete) {
+    return (
+      <div className={cn('bg-green-50 border-b border-green-200 py-4 px-4', className)}>
+        <div className="max-w-4xl mx-auto flex items-center justify-center gap-3">
+          <PartyPopper className="w-6 h-6 text-green-600" />
+          <span className="text-green-700 font-medium">Onboarding Complete!</span>
+          <PartyPopper className="w-6 h-6 text-green-600" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('bg-white border-b border-gray-200 py-3 px-4', className)}>
       <div className="max-w-4xl mx-auto">
+        {/* Progress bar */}
+        {showPercentage && (
+          <div className="mb-3">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs text-gray-500">Progress</span>
+              <span className="text-xs font-medium text-gray-700">{percentage}%</span>
+            </div>
+            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Checkpoint steps */}
         <div className="flex items-center justify-between">
           {checkpoints.map((checkpoint, index) => {
             const isCompleted = index < currentIndex;
@@ -76,7 +114,7 @@ export function CheckpointProgress({ currentCheckpoint, className }: CheckpointP
                 {index < checkpoints.length - 1 && (
                   <div
                     className={cn(
-                      'h-0.5 w-8 sm:w-12 md:w-16 mx-1 sm:mx-2',
+                      'h-0.5 w-8 sm:w-12 md:w-16 mx-1 sm:mx-2 transition-colors',
                       index < currentIndex ? 'bg-green-500' : 'bg-gray-200'
                     )}
                   />
