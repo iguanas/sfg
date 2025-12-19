@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         content: response.message,
         extractedData: response.extractedData ? JSON.parse(JSON.stringify(response.extractedData)) : undefined,
         tokensUsed: response.tokensUsed,
-        modelUsed: 'claude-sonnet-4-20250514',
+        modelUsed: 'gemini-2.0-flash',
       },
     });
 

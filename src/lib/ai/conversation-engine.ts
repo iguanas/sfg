@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI, GenerativeModel, Content } from '@google/generative-ai';
 import { getSystemPrompt, getNextCheckpoint, isCheckpointComplete, type PromptContext } from './prompts';
 import { parseAIResponse, mergeExtractedData, type AIResponseData } from './extraction';
 import type { Checkpoint, ChatMessage } from '@/types/onboarding';
@@ -39,15 +39,19 @@ export interface ConversationResponse {
 // ============================================
 
 export class ConversationEngine {
-  private anthropic: Anthropic | null;
-  private model: string = 'claude-sonnet-4-20250514';
-  private maxTokens: number = 1024;
+  private genAI: GoogleGenerativeAI | null;
+  private model: GenerativeModel | null;
+  private modelName: string = 'gemini-2.0-flash';
   private maxHistoryMessages: number = 20;
 
   constructor() {
-    this.anthropic = process.env.ANTHROPIC_API_KEY
-      ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-      : null;
+    if (process.env.GOOGLE_API_KEY) {
+      this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+      this.model = this.genAI.getGenerativeModel({ model: this.modelName });
+    } else {
+      this.genAI = null;
+      this.model = null;
+    }
   }
 
   /**
@@ -80,27 +84,34 @@ export class ConversationEngine {
     let responseData: AIResponseData;
     let tokensUsed: number | undefined;
 
-    if (this.anthropic) {
+    if (this.model) {
       try {
-        const response = await this.anthropic.messages.create({
-          model: this.model,
-          max_tokens: this.maxTokens,
-          system: systemPrompt,
-          messages: conversationHistory,
+        // Start a chat session with the system prompt
+        const chat = this.model.startChat({
+          history: conversationHistory,
+          generationConfig: {
+            maxOutputTokens: 1024,
+          },
+          systemInstruction: systemPrompt,
         });
 
-        const textBlock = response.content.find((block) => block.type === 'text');
-        const responseText = textBlock?.text || '';
+        // Send the current message
+        const result = await chat.sendMessage(userMessage);
+        const response = result.response;
+        const responseText = response.text();
 
         responseData = parseAIResponse(responseText);
-        tokensUsed = response.usage?.output_tokens;
+
+        // Get token usage if available
+        const usageMetadata = response.usageMetadata;
+        tokensUsed = usageMetadata?.candidatesTokenCount;
       } catch (error) {
-        console.error('Claude API error:', error);
+        console.error('Gemini API error:', error);
         responseData = this.getFallbackResponse(context.currentCheckpoint, userMessage);
       }
     } else {
       // No API key - use fallback responses
-      console.log('No ANTHROPIC_API_KEY configured, using fallback response');
+      console.log('No GOOGLE_API_KEY configured, using fallback response');
       responseData = this.getFallbackResponse(context.currentCheckpoint, userMessage);
     }
 
@@ -126,30 +137,34 @@ export class ConversationEngine {
   }
 
   /**
-   * Build conversation history for the AI
+   * Build conversation history for the AI in Gemini format
    */
   private buildConversationHistory(
     history: ChatMessage[],
-    currentMessage: string
-  ): Array<{ role: 'user' | 'assistant'; content: string }> {
+    _currentMessage: string
+  ): Content[] {
     // Take the last N messages for context
     const recentHistory = history.slice(-this.maxHistoryMessages);
 
-    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    const contents: Content[] = [];
 
     for (const msg of recentHistory) {
       if (msg.role === 'USER') {
-        messages.push({ role: 'user', content: msg.content });
+        contents.push({
+          role: 'user',
+          parts: [{ text: msg.content }],
+        });
       } else if (msg.role === 'ASSISTANT') {
-        messages.push({ role: 'assistant', content: msg.content });
+        contents.push({
+          role: 'model',
+          parts: [{ text: msg.content }],
+        });
       }
       // Skip SYSTEM messages in history
     }
 
-    // Add current message
-    messages.push({ role: 'user', content: currentMessage });
-
-    return messages;
+    // Note: Don't add current message here - it's sent via sendMessage()
+    return contents;
   }
 
   /**
@@ -241,7 +256,7 @@ export class ConversationEngine {
    */
   getWelcomeMessage(clientName?: string): string {
     const name = clientName ? ` ${clientName}` : '';
-    return `Hi${name}! 👋 Welcome to Set Forget Grow!
+    return `Hi${name}! Welcome to Set Forget Grow!
 
 I'm here to help you through our quick onboarding process. This usually takes about 10-15 minutes, and you can type or use the mic button to talk - whatever's easier for you.
 
