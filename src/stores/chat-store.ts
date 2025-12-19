@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ChatMessage, Checkpoint, AIResponse } from '@/types/onboarding';
+import type { ChatMessage, Checkpoint } from '@/types/onboarding';
 
 interface ChatState {
   sessionId: string | null;
@@ -77,7 +77,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to send message');
       }
 
       const data = await response.json();
@@ -92,9 +93,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
       addMessage(assistantMessage);
 
-      // Update checkpoint if needed
-      if (data.checkpoint) {
+      // Update checkpoint if advanced
+      if (data.advanced && data.checkpoint) {
         setCheckpoint(data.checkpoint);
+      }
+
+      // Handle UI actions from AI response
+      if (data.uiAction) {
+        // TODO: Trigger UI component display
+        console.log('UI Action:', data.uiAction);
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');

@@ -12,8 +12,7 @@ interface ChatContainerProps {
   messages: ChatMessage[];
   currentCheckpoint: Checkpoint;
   isLoading: boolean;
-  onSendMessage: (content: string) => void;
-  onStartRecording?: () => void;
+  onSendMessage: (content: string, isVoice?: boolean) => void;
 }
 
 export function ChatContainer({
@@ -21,16 +20,18 @@ export function ChatContainer({
   currentCheckpoint,
   isLoading,
   onSendMessage,
-  onStartRecording,
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  const handleSendMessage = (content: string, isVoice = false) => {
+    onSendMessage(content, isVoice);
+  };
 
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -38,35 +39,38 @@ export function ChatContainer({
       <CheckpointProgress currentCheckpoint={currentCheckpoint} />
 
       {/* Messages area */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        <div className="max-w-4xl mx-auto">
+      <ScrollArea className="flex-1" ref={scrollRef}>
+        <div className="p-4 max-w-4xl mx-auto">
           {messages.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <p className="text-lg font-medium">Welcome to Set Forget Grow!</p>
-              <p className="mt-2">We're here to help you get started. Send a message to begin.</p>
+              <p className="mt-2">We&apos;re here to help you get started. Send a message to begin.</p>
             </div>
           ) : (
-            messages.map((message, index) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                isLatest={index === messages.length - 1}
-              />
-            ))
+            <>
+              {messages.map((message, index) => (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  isLatest={index === messages.length - 1}
+                />
+              ))}
+              {isLoading && <TypingIndicator />}
+            </>
           )}
-          {isLoading && <TypingIndicator />}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
       {/* Input area */}
       <MessageInput
-        onSendMessage={onSendMessage}
-        onStartRecording={onStartRecording}
+        onSendMessage={handleSendMessage}
         disabled={isLoading}
+        showVoice={true}
         placeholder={
           currentCheckpoint === 'WELCOME'
             ? 'Say hello to get started...'
-            : 'Type or use the mic to respond...'
+            : 'Type or tap the mic to respond...'
         }
       />
     </div>
