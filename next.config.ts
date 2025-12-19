@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Note: Local Windows builds may fail due to Turbopack symlink issues
-  // Build works correctly on Vercel (Linux environment)
+  // Note: Use `npm run build` (webpack) for Windows compatibility
+  // Turbopack has symlink issues on Windows without admin privileges
+  // Use `npm run build:turbo` for Turbopack builds on Linux/Vercel
 };
 
 export default nextConfig;

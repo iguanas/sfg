@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ChatContainer } from '@/components/chat';
 import { useChatStore } from '@/stores/chat-store';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session');
   const [initialized, setInitialized] = useState(false);
@@ -56,7 +56,7 @@ export default function OnboardingPage() {
           addMessage({
             id: 'welcome',
             role: 'ASSISTANT',
-            content: `Hi${data.clientName ? ` ${data.clientName}` : ''}! 👋 Welcome to Set Forget Grow!\n\nI'm here to help you through our quick onboarding process. This usually takes about 10-15 minutes, and you can type or use the mic button to talk - whatever's easier for you.\n\nLet's start with your business. What's the name of your business?`,
+            content: `Hi${data.clientName ? ` ${data.clientName}` : ''}! Welcome to Set Forget Grow!\n\nI'm here to help you through our quick onboarding process. This usually takes about 10-15 minutes, and you can type or use the mic button to talk - whatever's easier for you.\n\nLet's start with your business. What's the name of your business?`,
             createdAt: new Date(),
           });
         }
@@ -109,5 +109,24 @@ export default function OnboardingPage() {
       isLoading={isLoading}
       onSendMessage={handleSendMessage}
     />
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <OnboardingContent />
+    </Suspense>
   );
 }
